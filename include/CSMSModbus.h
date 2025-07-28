@@ -73,7 +73,7 @@ public:
 
         failCount = 0;
         lastValueRead = value;
-        humidity = map(value, drySoilValue, wetSoilValue, 0, 100);
+        humidity = ::map(value, drySoilValue, wetSoilValue, 0, 100);
         logger->send(LevelLog::WARNING, (String("Sensor [") + name + "] raw: " + value + ", humidity: " + humidity + "%").c_str());
     }
 
