@@ -2,7 +2,7 @@
 #define POT_H
 
 #include "Logger.h"
-#include "CSMS.h"
+#include "ICSMS.h"
 #include <Looper.h>
 #include "Pump.h"
 
@@ -20,7 +20,7 @@ class Pot : public LoopTimerBase
   string name;
 
   Logger *logger;
-  CSMS *myCSMS;
+  ICSMS *myCSMS;
   Pump *pump;
   int threshold;      // порог срабатывания полива, влажность %
   int surveyTime;     // период опроса
@@ -29,12 +29,7 @@ class Pot : public LoopTimerBase
   PotState potState = PotState::STATE_SURVEY;
 
 public:
-  // GenericTimer *timerSurvey;
-  // GenericTimer *timerWatering;
-  // GenericTimer *timerAbsorption;
-
-public:
-  Pot(string name, Logger *logger, Pump *pump, CSMS *myCSMS, int threshold, int surveyTime, int wateringTime, int absorptionTime)
+  Pot(string name, Logger *logger, Pump *pump, ICSMS *myCSMS, int threshold, int surveyTime, int wateringTime, int absorptionTime)
       : LoopTimerBase(name.c_str(), surveyTime), name(name), logger(logger), pump(pump), myCSMS(myCSMS), threshold(threshold), surveyTime(surveyTime), wateringTime(wateringTime), absorptionTime(absorptionTime)
   {
     changePotState(PotState::STATE_SURVEY);
@@ -138,7 +133,6 @@ public:
     }
     this->potState = potState;
   }
-  // private:
 };
 
 #endif // POT_H

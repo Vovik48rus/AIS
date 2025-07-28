@@ -7,10 +7,14 @@
 #include "CSMS.h"
 #include "Pump.h"
 #include "Pot.h"
+#include "ICSMS.h"
+#include "CSMSModbus.h"
+#include <ArduinoRS485.h>
+#include <ArduinoModbus.h>
 
 /* Put your SSID & Password */
-const char* ssid = "ESP32";  // Enter SSID here
-const char* password = "12345678";  //Enter Password here
+const char *ssid = "ESP32";        // Enter SSID here
+const char *password = "12345678"; // Enter Password here
 
 /* Put IP Address details */
 // IPAddress local_ip(192,168,1,1);
@@ -19,52 +23,61 @@ const char* password = "12345678";  //Enter Password here
 
 // WebServer server(80);
 
-CSMS CSMS1(32, &logger, "CSMS1", 100, 2800, 1050);
-CSMS CSMS2(33, &logger, "CSMS2", 100, 2800, 1100);
-CSMS CSMS3(34, &logger, "CSMS3", 100, 2800, 1100);
-CSMS CSMS4(35, &logger, "CSMS4", 100, 2800, 1100);
+// CSMS CSMS1(32, &logger, "CSMS1", 100, 2800, 1050);
+// CSMS CSMS2(33, &logger, "CSMS2", 100, 2800, 1100);
+// CSMS CSMS3(34, &logger, "CSMS3", 100, 2800, 1100);
+// CSMS CSMS4(35, &logger, "CSMS4", 100, 2800, 1100);
+
+CSMSModbus sensor("CSMS-MOD1", &logger, 1, 0x00, 1000);
 
 Pump pump1(18);
 Pump pump2(5);
 // Pump pump3(17);
 // Pump pump4(16);
 
-Pot pot1("Pot1", &logger, &pump1, &CSMS1, 40, 3000, 1000, 2000);
+Pot pot1("Pot1", &logger, &pump1, &sensor, 40, 3000, 1000, 2000);
 
 unsigned long long counterLoop = 0;
 
-LP_TIMER(500, []() 
-{
+LP_TIMER(500, []()
+         {
   LevelLog messagelevel;
   if (esp_get_free_heap_size() < 10000) messagelevel = LevelLog::WARNING;
   else messagelevel = LevelLog::DEBUG;
 
-  logger.send(messagelevel, (string("Свободная память (heap): ") + to_string(esp_get_free_heap_size())).c_str());
-});
+  logger.send(messagelevel, (string("Свободная память (heap): ") + to_string(esp_get_free_heap_size())).c_str()); });
 
-LP_TIMER(1000, []() 
-{
+LP_TIMER(1000, []()
+         {
   LevelLog messagelevel;
   if (counterLoop < 100) messagelevel = LevelLog::WARNING;
   else messagelevel = LevelLog::DEBUG;
 
   logger.send(messagelevel, (string("Количество Loop/Ms: ") + to_string(counterLoop)).c_str());
-  counterLoop = 0;
-});
+  counterLoop = 0; });
 
 void handleRoot();
 
-void setup() 
+void setup()
 {
   logger.setLevelLog(LevelLog::WARNING);
   Serial.begin(115200);
 
+  RS485.setPins(17, 33, 32);
+  if (!ModbusRTUClient.begin(115200, SERIAL_8E2))
+  {
+    Serial.println("Failed to start Modbus RTU Client!");
+    while (1)
+      ;
+  }
+  ModbusRTUClient.setTimeout(500);
+
   // WiFi.softAP(ssid, password);
   // WiFi.softAPConfig(local_ip, gateway, subnet);
   // delay(100);
-  
+
   // server.on("/", handleRoot);
-  
+
   // server.begin();
 }
 
@@ -78,10 +91,12 @@ void loop()
   // Serial.print(", ");
   // Serial.print(pot1.left());
   // Serial.println();
-  if (Serial)
-  {
-    Serial.flush();
-  }
+
+  // if (Serial)
+  // {
+  //   Serial.flush();
+  // }
+  
   // esp_sleep_enable_timer_wakeup(Looper.nextTimerLeft() * 1000);
   // esp_light_sleep_start();
   counterLoop += 1;

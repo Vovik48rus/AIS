@@ -24,6 +24,7 @@ public:
   LevelLog getLevelLog();
   void setLevelLog(LevelLog level);
   void send(LevelLog msgLevel, const char* message);
+  void flush();
 };
 
 // Declare the global logger pointer

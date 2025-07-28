@@ -14,23 +14,29 @@ void Logger::setLevelLog(LevelLog level)
   levelLog = level;
 }
 
-const char* Logger::levelToString(LevelLog level)
+const char *Logger::levelToString(LevelLog level)
 {
   switch (level)
   {
-    case INFO: return "INFO";
-    case DEBUG: return "DEBUG";
-    case WARNING: return "WARNING";
-    case CRITICAL_WARNING: return "CRITICAL WARNING";
-    case ERROR: return "ERROR";
-    default: return "UNKNOWN";
+  case INFO:
+    return "INFO";
+  case DEBUG:
+    return "DEBUG";
+  case WARNING:
+    return "WARNING";
+  case CRITICAL_WARNING:
+    return "CRITICAL WARNING";
+  case ERROR:
+    return "ERROR";
+  default:
+    return "UNKNOWN";
   }
 }
 
-void Logger::send(LevelLog msgLevel, const char* message)
+void Logger::send(LevelLog msgLevel, const char *message)
 {
   // Проверяем, инициализирован ли Serial и готов ли
-  if (!Serial) 
+  if (!Serial)
   {
     return; // интерфейс недоступен — не пишем
   }
@@ -42,4 +48,10 @@ void Logger::send(LevelLog msgLevel, const char* message)
     Serial.print("] ");
     Serial.println(message);
   }
+}
+
+void Logger::flush()
+{
+  if (Serial)
+    Serial.flush();
 }

@@ -3,10 +3,11 @@
 
 #include "Logger.h"
 #include <Looper.h>
+#include "ICSMS.h"
 
 using namespace std;
 
-class CSMS : private LoopTimerBase
+class CSMS : public ICSMS
 {
   unsigned int pin;
   int arr [10] = {0};
@@ -21,7 +22,7 @@ class CSMS : private LoopTimerBase
 
 public:
   CSMS(int pin, Logger* logger, const char* name, uint32_t intervalMs, unsigned int drySoilValue = 2800, unsigned int wetSoilValue = 1100) :
-  LoopTimerBase(name, intervalMs), pin(pin), logger(logger), name(name), drySoilValue(drySoilValue), wetSoilValue(wetSoilValue)
+  ICSMS(name, intervalMs), pin(pin), logger(logger), name(name), drySoilValue(drySoilValue), wetSoilValue(wetSoilValue)
   {
     counter = 0;
     medium = 0;
@@ -29,7 +30,7 @@ public:
   }
 
 
-  void exec()
+  void exec() override 
   {
     measure();
     if (counter == 10)
@@ -38,7 +39,7 @@ public:
     }
   }
 
-  bool humidityIsValid()
+  bool humidityIsValid() const override 
   {
     if (0 <= this->humidity && this->humidity <= 100)
     {
@@ -48,7 +49,7 @@ public:
     return false;
   }
 
-  int getHumidity()
+  int getHumidity() const override  
   {
     return this->humidity;
   }
@@ -68,17 +69,17 @@ public:
   //   return this->medium;
   // }
 
-  const char* getName()
+  const char* getName() const override 
   {
     return this->name;
   }
 
-  unsigned int getDrySoilValue()
+  unsigned int getDrySoilValue() const override 
   {
     return drySoilValue;
   }
 
-  bool setDrySoilValue(unsigned int drySoilValue)
+  bool setDrySoilValue(unsigned int drySoilValue) override 
   {
     if (drySoilValue < 4096)
     {
@@ -89,12 +90,12 @@ public:
     return false;
   }
 
-  unsigned int getWetSoilValue()
+  unsigned int getWetSoilValue() const override 
   {
     return wetSoilValue;
   }
 
-  bool setWetSoilValue(unsigned int wetSoilValue)
+  bool setWetSoilValue(unsigned int wetSoilValue) override 
   {
     if (wetSoilValue < 4096)
     {

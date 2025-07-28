@@ -19,14 +19,14 @@ public:
 
     void on()
     {
-        logger.send(LevelLog::WARNING, "Включение помпы [Pump]");
+        logger.send(LevelLog::WARNING, "[Pump] Включение помпы ");
         digitalWrite(pin, HIGH);
         this->isEnable = true;
     }
 
     void off()
     {
-        logger.send(LevelLog::WARNING, "Выключение помпы [Pump]");
+        logger.send(LevelLog::WARNING, "[Pump] Выключение помпы ");
         digitalWrite(pin, LOW);
         this->isEnable = false;
     }
