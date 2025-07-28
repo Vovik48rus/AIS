@@ -2,8 +2,10 @@
 #include <Looper.h>
 #include <ArduinoRS485.h>
 #include <ArduinoModbus.h>
-// #include <WiFi.h>
-// #include <WebServer.h>
+
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ArduinoJson.h>
 
 #include "Logger.h"
 #include "CSMSModbus.h"
@@ -16,11 +18,11 @@ const char *ssid = "ESP32";        // Enter SSID here
 const char *password = "12345678"; // Enter Password here
 
 /* Put IP Address details */
-// IPAddress local_ip(192,168,1,1);
-// IPAddress gateway(192,168,1,1);
-// IPAddress subnet(255,255,255,0);
+IPAddress local_ip(192, 168, 1, 1);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
 
-// WebServer server(80);
+WebServer server(80);
 
 // Настройка датчиков CSMS Modbus
 CSMSModbus sensor1("CSMS-MOD1", &logger, 1, 0x00, 1000);
@@ -50,6 +52,8 @@ LP_TIMER(1000, []()
   logger.send(level, (String("Количество Loop/Ms: ") + counterLoop).c_str());
   counterLoop = 0; });
 
+void handleRoot();
+
 void setup()
 {
   logger.setLevelLog(LevelLog::WARNING);
@@ -69,13 +73,13 @@ void setup()
   }
   ModbusRTUClient.setTimeout(500);
 
-  // WiFi.softAP(ssid, password);
-  // WiFi.softAPConfig(local_ip, gateway, subnet);
-  // delay(100);
+  WiFi.softAP(ssid, password);
+  WiFi.softAPConfig(local_ip, gateway, subnet);
+  delay(100);
 
-  // server.on("/", handleRoot);
+  server.on("/", handleRoot);
 
-  // server.begin();
+  server.begin();
 }
 
 void loop()
@@ -99,17 +103,18 @@ void loop()
   counterLoop++;
 }
 
-// void handleRoot() {
-//   // Создаем JSON-объект
-//   StaticJsonDocument<200> jsonDoc;
-//   jsonDoc["temperature"] = 24.5;
-//   jsonDoc["humidity"] = 55;
-//   jsonDoc["status"] = "OK";
+void handleRoot()
+{
+  // Создаем JSON-объект
+  StaticJsonDocument<200> jsonDoc;
+  jsonDoc["temperature"] = 24.5;
+  jsonDoc["humidity"] = 55;
+  jsonDoc["status"] = "OK";
 
-//   // Сериализация в строку
-//   String jsonResponse;
-//   serializeJson(jsonDoc, jsonResponse);
+  // Сериализация в строку
+  String jsonResponse;
+  serializeJson(jsonDoc, jsonResponse);
 
-//   // Отправляем клиенту JSON
-//   server.send(200, "application/json", jsonResponse);
-// }
+  // Отправляем клиенту JSON
+  server.send(200, "application/json", jsonResponse);
+}

@@ -26,7 +26,7 @@ public:
 
     void addSensor(ICSMS *sensor)
     {
-        const char* sensorName = sensor->getName();
+        const char *sensorName = sensor->getName();
         if (sensor && sensorName)
         {
             sensors[sensorName] = sensor;
@@ -41,20 +41,26 @@ public:
         }
     }
 
-    bool humidityIsValid() const override {
-        for (const auto& pair : sensors) {
-            if (pair.second->humidityIsValid()) {
+    bool humidityIsValid() const override
+    {
+        for (const auto &pair : sensors)
+        {
+            if (pair.second->humidityIsValid())
+            {
                 return true;
             }
         }
         return false;
     }
 
-    int getHumidity() const override {
+    int getHumidity() const override
+    {
         int total = 0;
         int count = 0;
-        for (const auto& pair : sensors) {
-            if (pair.second->humidityIsValid()) {
+        for (const auto &pair : sensors)
+        {
+            if (pair.second->humidityIsValid())
+            {
                 total += pair.second->getHumidity();
                 ++count;
             }
@@ -64,26 +70,42 @@ public:
 
     unsigned int getDrySoilValue(const char *sensorName) const
     {
-        auto it = sensors.find(sensorName);
-        return (it != sensors.end()) ? it->second->getDrySoilValue() : 0;
+        ICSMS *sensor = getSensorByName(sensorName);
+        return sensor ? sensor->getDrySoilValue() : 0;
     }
 
     bool setDrySoilValue(const char *sensorName, unsigned int drySoilValue)
     {
-        auto it = sensors.find(sensorName);
-        return (it != sensors.end()) ? it->second->setDrySoilValue(drySoilValue) : false;
+        ICSMS *sensor = getSensorByName(sensorName);
+        return sensor ? sensor->setDrySoilValue(drySoilValue) : false;
     }
 
     unsigned int getWetSoilValue(const char *sensorName) const
     {
-        auto it = sensors.find(sensorName);
-        return (it != sensors.end()) ? it->second->getWetSoilValue() : 0;
+        ICSMS *sensor = getSensorByName(sensorName);
+        return sensor ? sensor->getWetSoilValue() : 0;
     }
 
     bool setWetSoilValue(const char *sensorName, unsigned int wetSoilValue)
     {
+        ICSMS *sensor = getSensorByName(sensorName);
+        return sensor ? sensor->setWetSoilValue(wetSoilValue) : false;
+    }
+
+    std::vector<std::string> getSensorNames() const
+    {
+        std::vector<std::string> names;
+        for (const auto &pair : sensors)
+        {
+            names.push_back(pair.first);
+        }
+        return names;
+    }
+
+    ICSMS *getSensorByName(const char *sensorName) const
+    {
         auto it = sensors.find(sensorName);
-        return (it != sensors.end()) ? it->second->setWetSoilValue(wetSoilValue) : false;
+        return (it != sensors.end()) ? it->second : nullptr;
     }
 };
 

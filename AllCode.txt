@@ -1,0 +1,800 @@
+----- include/CSMS.h -----
+
+
+using namespace std;
+
+class CSMS : public ICSMS
+{
+  unsigned int pin;
+  int arr [10] = {0};
+  int counter;
+  int medium;
+  int humidity;
+  unsigned int drySoilValue;
+  unsigned int wetSoilValue;
+  const char* name;
+
+  Logger* logger;
+
+public:
+  CSMS(int pin, Logger* logger, const char* name, uint32_t intervalMs, unsigned int drySoilValue = 2800, unsigned int wetSoilValue = 1100) :
+  ICSMS(name, intervalMs), pin(pin), logger(logger), name(name), drySoilValue(drySoilValue), wetSoilValue(wetSoilValue)
+  {
+    counter = 0;
+    medium = 0;
+  }
+
+
+  void exec() override 
+  {
+    measure();
+    if (counter == 10)
+    {
+      calcHumidity();
+    }
+  }
+
+  bool humidityIsValid() const override 
+  {
+    if (0 <= this->humidity && this->humidity <= 100)
+    {
+      return true;
+    }
+    return false;
+  }
+
+  int getHumidity() const override  
+  {
+    return this->humidity;
+  }
+
+  // bool mediumIsValid()
+  // {
+  //   if (wetSoilValue <= this->medium &&  this->medium <= drySoilValue)
+  //   {
+  //     return true;
+  //   }
+  //   return false;
+  // }
+
+  // int getMedium()
+  // {
+  //   return this->medium;
+  // }
+
+  const char* getName() const override 
+  {
+    return this->name;
+  }
+
+  unsigned int getDrySoilValue() const override 
+  {
+    return drySoilValue;
+  }
+
+  bool setDrySoilValue(unsigned int drySoilValue) override 
+  {
+    if (drySoilValue < 4096)
+    {
+      this->drySoilValue = drySoilValue;
+      return true;
+    }
+    return false;
+  }
+
+  unsigned int getWetSoilValue() const override 
+  {
+    return wetSoilValue;
+  }
+
+  bool setWetSoilValue(unsigned int wetSoilValue) override 
+  {
+    if (wetSoilValue < 4096)
+    {
+      this->wetSoilValue = wetSoilValue;
+      return true;
+    }
+    return false;
+  }
+
+  ~CSMS() {}
+
+private:
+  void measure()
+  {
+    logger->send(LevelLog::INFO, (string("Pin:") + to_string(pin) + string(", ") + to_string(analogRead(pin))).c_str());
+    arr[counter] = analogRead(pin);
+    logger->send(LevelLog::INFO, (
+      );
+    counter++;
+  }
+
+  int calcMedium()
+  {
+    unsigned int summ = 0;
+    for (int i = 0; i < 10; i ++)
+    {
+      summ += arr[i];
+    }
+    medium = summ / 10;
+    counter = 0;
+    return medium;
+  }
+
+  int calcHumidity()
+  {
+    this->humidity = map(calcMedium(), drySoilValue, wetSoilValue, 0, 100);
+    return this->humidity;
+  }
+};
+
+
+
+----- include/CSMSModbus.h -----
+
+
+
+class CSMSModbus : public ICSMS
+{
+private:
+    uint8_t slaveId;
+    uint16_t registerAddress;
+    const char *name;
+    uint32_t lastValueRead = 0;
+    int humidity = -1;
+    unsigned int drySoilValue;
+    unsigned int wetSoilValue;
+
+    Logger *logger;
+
+    int failCount = 0;                    // количество последовательных неудач
+    static constexpr int MAX_FAILS = 5;   // максимум последовательных неудач до сброса humidity
+    static constexpr int MAX_RETRIES = 3; // количество попыток при одном опросе
+
+public:
+    CSMSModbus(const char *name, Logger *logger, uint8_t slaveId, uint16_t registerAddress, uint32_t intervalMs,
+               unsigned int drySoilValue = 700, unsigned int wetSoilValue = 275)
+        : ICSMS(name, intervalMs),
+          slaveId(slaveId),
+          registerAddress(registerAddress),
+          name(name),
+          logger(logger),
+          drySoilValue(drySoilValue),
+          wetSoilValue(wetSoilValue)
+    {
+        logger->send(LevelLog::INFO, (String("Modbus CSMS sensor initialized: ") + name).c_str());
+    }
+
+    void exec() override
+    {
+        int attempt = 0;
+        int value = -1;
+
+        while (attempt < MAX_RETRIES)
+        {
+            logger->flush();
+            value = ModbusRTUClient.inputRegisterRead(slaveId, registerAddress);
+            if (value != -1)
+                break; // успех
+
+            attempt++;
+            // delay(100);
+        }
+
+        if (value == -1)
+        {
+            failCount++;
+            logger->send(LevelLog::WARNING, (String("All retries failed for [") + name + "], fail count = " + failCount).c_str());
+
+            if (failCount >= MAX_FAILS)
+            {
+                humidity = -1;
+                logger->send(LevelLog::ERROR, (String("Max fail count reached for ") + name + ", setting humidity = -1").c_str());
+                failCount = 0;
+            }
+
+            return;
+        }
+
+        failCount = 0;
+        lastValueRead = value;
+        humidity = ::map(value, drySoilValue, wetSoilValue, 0, 100);
+        logger->send(LevelLog::WARNING, (String("Sensor [") + name + "] raw: " + value + ", humidity: " + humidity + "%").c_str());
+    }
+
+    bool humidityIsValid() const override
+    {
+        return humidity >= 0 && humidity <= 100;
+    }
+
+    int getHumidity() const override
+    {
+        return humidity;
+    }
+
+    const char *getName() const override
+    {
+        return name;
+    }
+
+    unsigned int getDrySoilValue() const override
+    {
+        return drySoilValue;
+    }
+
+    bool setDrySoilValue(unsigned int value) override
+    {
+        if (value < 1024)
+        {
+            drySoilValue = value;
+            return true;
+        }
+        logger->send(LevelLog::WARNING, (String("Invalid drySoilValue set attempt on ") + name).c_str());
+        return false;
+    }
+
+    unsigned int getWetSoilValue() const override
+    {
+        return wetSoilValue;
+    }
+
+    bool setWetSoilValue(unsigned int value) override
+    {
+        if (value < 1024)
+        {
+            wetSoilValue = value;
+            return true;
+        }
+        logger->send(LevelLog::WARNING, (String("Invalid wetSoilValue set attempt on ") + name).c_str());
+        return false;
+    }
+
+    ~CSMSModbus() {}
+};
+
+
+
+----- include/GenericTimer.h -----
+
+
+class GenericTimer : public LoopTimerBase {
+  std::function<void()> callback;
+
+public:
+  GenericTimer(uint32_t intervalMs, std::function<void()> cb)
+    : LoopTimerBase(intervalMs), callback(cb) {}
+
+  void exec() override {
+    if (callback) callback();
+  }
+
+  void updateCallback(std::function<void()> cb) {
+    callback = cb;
+  }
+
+  // void updateInterval(uint32_t intervalMs) {
+  //   this->interval = intervalMs;
+  // }
+};
+
+
+
+----- include/HumiditySensorGroup.h -----
+
+
+class HumiditySensorGroup : public IHumiditySensor
+{
+private:
+    char name[14];
+    std::map<std::string, ICSMS *> sensors;
+
+public:
+    explicit HumiditySensorGroup(const char *groupName)
+    {
+        strncpy(name, groupName, sizeof(name) - 1);
+        name[sizeof(name) - 1] = '\0';
+    }
+
+    const char *getName() const override
+    {
+        return name;
+    }
+
+    void addSensor(ICSMS *sensor)
+    {
+        const char* sensorName = sensor->getName();
+        if (sensor && sensorName)
+        {
+            sensors[sensorName] = sensor;
+        }
+    }
+
+    bool removeSensor(const char *sensorName)
+    {
+        if (sensorName)
+        {
+            return sensors.erase(sensorName) > 0;
+        }
+    }
+
+    bool humidityIsValid() const override {
+        for (const auto& pair : sensors) {
+            if (pair.second->humidityIsValid()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int getHumidity() const override {
+        int total = 0;
+        int count = 0;
+        for (const auto& pair : sensors) {
+            if (pair.second->humidityIsValid()) {
+                total += pair.second->getHumidity();
+                ++count;
+            }
+        }
+        return count > 0 ? total / count : -1;
+    }
+
+    unsigned int getDrySoilValue(const char *sensorName) const
+    {
+        auto it = sensors.find(sensorName);
+        return (it != sensors.end()) ? it->second->getDrySoilValue() : 0;
+    }
+
+    bool setDrySoilValue(const char *sensorName, unsigned int drySoilValue)
+    {
+        auto it = sensors.find(sensorName);
+        return (it != sensors.end()) ? it->second->setDrySoilValue(drySoilValue) : false;
+    }
+
+    unsigned int getWetSoilValue(const char *sensorName) const
+    {
+        auto it = sensors.find(sensorName);
+        return (it != sensors.end()) ? it->second->getWetSoilValue() : 0;
+    }
+
+    bool setWetSoilValue(const char *sensorName, unsigned int wetSoilValue)
+    {
+        auto it = sensors.find(sensorName);
+        return (it != sensors.end()) ? it->second->setWetSoilValue(wetSoilValue) : false;
+    }
+};
+
+
+
+----- include/ICSMS.h -----
+
+
+class ICSMS : public IHumiditySensor, private LoopTimerBase
+{
+public:
+    ICSMS(const char *id, uint32_t intervalMs)
+        : LoopTimerBase(id, intervalMs) {}
+
+    virtual unsigned int getDrySoilValue() const = 0;
+    virtual bool setDrySoilValue(unsigned int drySoilValue) = 0;
+
+    virtual unsigned int getWetSoilValue() const = 0;
+    virtual bool setWetSoilValue(unsigned int wetSoilValue) = 0;
+
+private:
+    virtual void exec() = 0;
+};
+
+
+
+----- include/IHumiditySensor.h -----
+
+class IHumiditySensor {
+public:
+  virtual ~IHumiditySensor() {}
+
+  virtual const char* getName() const = 0;
+  virtual bool humidityIsValid() const = 0;
+  virtual int getHumidity() const = 0;
+};
+
+
+
+----- include/Logger.h -----
+
+
+enum LevelLog
+{
+  DEBUG,
+  INFO,
+  WARNING,
+  CRITICAL_WARNING,
+  ERROR
+};
+
+class Logger
+{
+private:
+  LevelLog levelLog;
+  const char* levelToString(LevelLog level);
+
+public:
+  Logger(LevelLog level);
+  LevelLog getLevelLog();
+  void setLevelLog(LevelLog level);
+  void send(LevelLog msgLevel, const char* message);
+  void flush();
+};
+
+// Declare the global logger pointer
+extern Logger logger;
+
+
+
+----- include/Pot.h -----
+
+
+using namespace std;
+
+enum PotState
+{
+  STATE_SURVEY,
+  STATE_WATERING,
+  STATE_ABSORPTION
+};
+
+class Pot : public LoopTimerBase
+{
+  string name;
+
+  Logger *logger;
+  IHumiditySensor *myCSMS;
+  Pump *pump;
+  int threshold;      // порог срабатывания полива, влажность %
+  int surveyTime;     // период опроса
+  int wateringTime;   // время полива
+  int absorptionTime; // время поглощения почвы
+  PotState potState = PotState::STATE_SURVEY;
+
+public:
+  Pot(string name, Logger *logger, Pump *pump, IHumiditySensor *myCSMS, int threshold, int surveyTime, int wateringTime, int absorptionTime)
+      : LoopTimerBase(name.c_str(), surveyTime), name(name), logger(logger), pump(pump), myCSMS(myCSMS), threshold(threshold), surveyTime(surveyTime), wateringTime(wateringTime), absorptionTime(absorptionTime)
+  {
+    changePotState(PotState::STATE_SURVEY);
+  }
+
+  void exec() override
+  {
+    switch (this->potState)
+    {
+    case PotState::STATE_SURVEY:
+      surveyTick();
+      break;
+
+    case PotState::STATE_WATERING:
+      wateringTick();
+      break;
+
+    case PotState::STATE_ABSORPTION:
+      absorptionTick();
+      break;
+
+    default:
+      break;
+    }
+  }
+
+  void surveyTick()
+  {
+    logger->send(LevelLog::WARNING, (string("Survey tick [Pot:") + name + string("]")).c_str());
+
+    if (myCSMS->humidityIsValid())
+    {
+      int humidity = myCSMS->getHumidity();
+      logger->send(LevelLog::WARNING, (string("[Pot: " + name + "] " + " Влажность: " + to_string(humidity))).c_str());
+      if (humidity <= this->threshold)
+      {
+        this->pump->on();
+        changePotState(PotState::STATE_WATERING);
+        logger->send(LevelLog::WARNING, (string("Начало полива [Pot: ") + name + string("]")).c_str());
+      }
+      else
+      {
+        logger->send(LevelLog::WARNING, ("Горшок [Pot: " + name + "] не требует полива").c_str());
+      }
+    }
+    else
+    {
+      logger->send(LevelLog::WARNING, (string("Влажность с датчика ") + string(myCSMS->getName()) + string(" не является правдивой")).c_str());
+    }
+  }
+
+  void wateringTick()
+  {
+    logger->send(LevelLog::WARNING, (string("Конец полива, wait for absorption [Pot: ") + name + string("]")).c_str());
+    this->pump->off();
+    changePotState(PotState::STATE_ABSORPTION);
+  }
+
+  void absorptionTick()
+  {
+    if (myCSMS->humidityIsValid())
+    {
+      int humidity = myCSMS->getHumidity();
+      logger->send(LevelLog::WARNING, (string("[Pot: " + name + "] " + " Влажность: " + to_string(humidity))).c_str());
+      if (humidity <= this->threshold)
+      {
+        this->pump->on();
+        changePotState(PotState::STATE_WATERING);
+        logger->send(LevelLog::WARNING, (string("Продолжение полива [Pot: ") + name + string("]")).c_str());
+      }
+      else
+      {
+        changePotState(PotState::STATE_SURVEY);
+        logger->send(LevelLog::WARNING, (string() + "Absorption done, restart survey [Pot: " + name + "]").c_str());
+      }
+    }
+    else
+    {
+      logger->send(LevelLog::WARNING, (string("Влажность с датчика ") + string(myCSMS->getName()) + string("не является правдивой")).c_str());
+    }
+  }
+
+  void changePotState(PotState potState)
+  {
+    switch (potState)
+    {
+    case PotState::STATE_SURVEY:
+      this->restart(surveyTime);
+      break;
+
+    case PotState::STATE_WATERING:
+      this->restart(wateringTime);
+      break;
+
+    case PotState::STATE_ABSORPTION:
+      this->restart(absorptionTime);
+      break;
+
+    default:
+      break;
+    }
+    this->potState = potState;
+  }
+};
+
+
+
+----- include/Pump.h -----
+
+
+class Pump
+{
+private:
+    int pin;
+    bool isEnable = false;
+
+public:
+    Pump(int pin): pin(pin)
+    {
+        pinMode(pin, OUTPUT);
+        this->off();
+    }
+
+    void on()
+    {
+        logger.send(LevelLog::WARNING, "[Pump] Включение помпы ");
+        digitalWrite(pin, HIGH);
+        this->isEnable = true;
+    }
+
+    void off()
+    {
+        logger.send(LevelLog::WARNING, "[Pump] Выключение помпы ");
+        digitalWrite(pin, LOW);
+        this->isEnable = false;
+    }
+
+    bool isOn()
+    {
+        return this->isEnable;
+    }
+};
+
+
+
+----- include/TimerSurvey.h -----
+
+
+using namespace std;
+
+class Pot;
+
+class TimerSurvey : public LoopTimerBase 
+{
+  Pot* pot;
+
+public:
+  TimerSurvey(uint32_t intervalMs, Pot* pot)
+    : LoopTimerBase(intervalMs), pot(pot) {}
+
+  void exec() override;
+};
+
+
+
+----- src/AIS.cpp -----
+
+
+
+/* Put your SSID & Password */
+const char *ssid = "ESP32";        // Enter SSID here
+const char *password = "12345678"; // Enter Password here
+
+/* Put IP Address details */
+IPAddress local_ip(192, 168, 1, 1);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+
+WebServer server(80);
+
+// Настройка датчиков CSMS Modbus
+CSMSModbus sensor1("CSMS-MOD1", &logger, 1, 0x00, 1000);
+CSMSModbus sensor2("CSMS-MOD2", &logger, 2, 0x00, 1000);
+
+// Группа для pot1
+HumiditySensorGroup pot1Group("Pot1Group");
+
+Pump pump1(18);
+
+// Настройка pot1 с группой датчиков
+Pot pot1("Pot1", &logger, &pump1, &pot1Group, 40, 3000, 1000, 2000);
+
+// Счётчик итераций loop
+unsigned long long counterLoop = 0;
+
+// Таймер мониторинга памяти
+LP_TIMER(500, []()
+         {
+  LevelLog level = (esp_get_free_heap_size() < 10000) ? LevelLog::WARNING : LevelLog::DEBUG;
+  logger.send(level, (String("Свободная память (heap): ") + esp_get_free_heap_size()).c_str()); });
+
+// Таймер мониторинга производительности
+LP_TIMER(1000, []()
+         {
+  LevelLog level = (counterLoop < 100) ? LevelLog::WARNING : LevelLog::DEBUG;
+  logger.send(level, (String("Количество Loop/Ms: ") + counterLoop).c_str());
+  counterLoop = 0; });
+
+void handleRoot();
+
+void setup()
+{
+  logger.setLevelLog(LevelLog::WARNING);
+  Serial.begin(115200);
+
+  // Добавление датчиков в группу
+  pot1Group.addSensor(&sensor1);
+  pot1Group.addSensor(&sensor2);
+
+  // Настройка Modbus RTU
+  RS485.setPins(17, 33, 32);
+  if (!ModbusRTUClient.begin(115200, SERIAL_8E2))
+  {
+    Serial.println("Не удалось запустить Modbus RTU Client!");
+    while (1)
+      ;
+  }
+  ModbusRTUClient.setTimeout(500);
+
+  WiFi.softAP(ssid, password);
+  WiFi.softAPConfig(local_ip, gateway, subnet);
+  delay(100);
+
+  server.on("/", handleRoot);
+
+  server.begin();
+}
+
+void loop()
+{
+  Looper.loop();
+  // delay(Looper.nextTimerLeft());
+  // Serial.print(Looper.nextTimerLeft() * 1000);
+  // Serial.print(", ");
+  // Serial.print(millis());
+  // Serial.print(", ");
+  // Serial.print(pot1.left());
+  // Serial.println();
+
+  // if (Serial)
+  // {
+  //   Serial.flush();
+  // }
+
+  // esp_sleep_enable_timer_wakeup(Looper.nextTimerLeft() * 1000);
+  // esp_light_sleep_start();
+  counterLoop++;
+}
+
+void handleRoot()
+{
+  // Создаем JSON-объект
+  StaticJsonDocument<200> jsonDoc;
+  jsonDoc["temperature"] = 24.5;
+  jsonDoc["humidity"] = 55;
+  jsonDoc["status"] = "OK";
+
+  // Сериализация в строку
+  String jsonResponse;
+  serializeJson(jsonDoc, jsonResponse);
+
+  // Отправляем клиенту JSON
+  server.send(200, "application/json", jsonResponse);
+}
+
+
+----- src/Logger.cpp -----
+
+Logger logger(LevelLog::INFO);
+
+Logger::Logger(LevelLog level) : levelLog(level) {}
+
+LevelLog Logger::getLevelLog()
+{
+  return levelLog;
+}
+
+void Logger::setLevelLog(LevelLog level)
+{
+  levelLog = level;
+}
+
+const char *Logger::levelToString(LevelLog level)
+{
+  switch (level)
+  {
+  case INFO:
+    return "INFO";
+  case DEBUG:
+    return "DEBUG";
+  case WARNING:
+    return "WARNING";
+  case CRITICAL_WARNING:
+    return "CRITICAL WARNING";
+  case ERROR:
+    return "ERROR";
+  default:
+    return "UNKNOWN";
+  }
+}
+
+void Logger::send(LevelLog msgLevel, const char *message)
+{
+  // Проверяем, инициализирован ли Serial и готов ли
+  if (!Serial)
+  {
+    return; // интерфейс недоступен — не пишем
+  }
+
+  if (msgLevel >= levelLog)
+  {
+    Serial.print("[");
+    Serial.print(levelToString(msgLevel));
+    Serial.print("] ");
+    Serial.println(message);
+  }
+}
+
+void Logger::flush()
+{
+  if (Serial)
+    Serial.flush();
+}
+
+----- src/TimerSurvey.cpp -----
+
+void TimerSurvey::exec() {
+  pot->surveyTick();
+}
+
+
