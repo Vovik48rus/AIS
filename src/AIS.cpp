@@ -124,8 +124,8 @@ IPAddress subnet(255, 255, 255, 0);
 WebServer server(80);
 
 // Настройка датчиков CSMS Modbus
-CSMSModbus sensor1("CSMS-MOD1", &logger, 1, 0x00, 1000);
-CSMSModbus sensor2("CSMS-MOD2", &logger, 2, 0x00, 1000);
+CSMSModbus sensor1("CSMS-MOD1", &logger, 1, 0x00, 1000, 567, 225);
+CSMSModbus sensor2("CSMS-MOD2", &logger, 2, 0x00, 1000, 567, 225);
 
 // Группа для pot1
 HumiditySensorGroup pot1Group("Pot1Group");
