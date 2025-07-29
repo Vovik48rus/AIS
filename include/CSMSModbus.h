@@ -16,6 +16,7 @@ private:
     const char *name;
     uint32_t lastValueRead = 0;
     int humidity = -1;
+    int medium = 0;
     unsigned int drySoilValue;
     unsigned int wetSoilValue;
 
@@ -42,13 +43,12 @@ public:
     void exec() override
     {
         int attempt = 0;
-        int value = -1;
 
         while (attempt < MAX_RETRIES)
         {
             logger->flush();
-            value = ModbusRTUClient.inputRegisterRead(slaveId, registerAddress);
-            if (value != -1)
+            medium = ModbusRTUClient.inputRegisterRead(slaveId, registerAddress);
+            if (medium != -1)
                 break; // успех
 
             attempt++;
@@ -56,7 +56,7 @@ public:
             // delay(100);
         }
 
-        if (value == -1)
+        if (medium == -1)
         {
             failCount++;
             logger->send(LevelLog::WARNING, (String("All retries failed for [") + name + "], fail count = " + failCount).c_str());
@@ -71,15 +71,26 @@ public:
             return;
         }
 
+        if (!mediumIsValid())
+        {
+            logger->send(LevelLog::ERROR, (String("Invalid medium value for ") + name + ": " + medium).c_str());
+            return;
+        }
+
         failCount = 0;
-        lastValueRead = value;
-        humidity = ::map(value, drySoilValue, wetSoilValue, 0, 100);
-        logger->send(LevelLog::WARNING, (String("Sensor [") + name + "] raw: " + value + ", humidity: " + humidity + "%").c_str());
+        lastValueRead = medium;
+        humidity = ::map(medium, drySoilValue, wetSoilValue, 0, 100);
+        logger->send(LevelLog::WARNING, (String("Sensor [") + name + "] raw: " + medium + ", humidity: " + humidity + "%").c_str());
     }
 
     bool humidityIsValid() const override
     {
         return humidity >= 0 && humidity <= 100;
+    }
+
+    bool mediumIsValid() const
+    {
+        return 0 <= medium && medium <= 1023;
     }
 
     int getHumidity() const override
@@ -99,7 +110,7 @@ public:
 
     bool setDrySoilValue(unsigned int value) override
     {
-        if (value < 1024)
+        if (value < 1024 && value != wetSoilValue)
         {
             drySoilValue = value;
             return true;
@@ -115,7 +126,7 @@ public:
 
     bool setWetSoilValue(unsigned int value) override
     {
-        if (value < 1024)
+        if (value < 1024&& value != drySoilValue)
         {
             wetSoilValue = value;
             return true;
@@ -124,7 +135,49 @@ public:
         return false;
     }
 
+    bool calibrateDrySoilValue()
+  {
+    if (mediumIsValid())
+    {
+      bool flag = setDrySoilValue(getMedium());
+      if (flag)
+        logger->send(LevelLog::WARNING, (String("Калибровка сухой почвы датчика #") + name + String(", новое значение: ") + getMedium()).c_str());
+      else 
+        logger->send(LevelLog::ERROR, (String("Ошибка калибровки сухой почвы датчика #") + name).c_str());
+      return flag;
+    }
+    else
+    {
+      logger->send(LevelLog::ERROR, (String("Ошибка калибровки сухой почвы датчика #") + name + String("значение не валидно ") + getMedium()).c_str());
+      return false;
+    }
+  }
+
+  bool calibrateWetSoilValue()
+  {
+    if (mediumIsValid())
+    {
+      bool flag = setWetSoilValue(getMedium());
+      if (flag)
+        logger->send(LevelLog::WARNING, (String("Калибровка влажной почвы датчика #") + name + String(", новое значение: ") + getMedium()).c_str());
+      else 
+        logger->send(LevelLog::ERROR, (String("Ошибка калибровки влажной почвы датчика #") + name).c_str());
+      return flag;
+    }
+    else
+    {
+      logger->send(LevelLog::ERROR, (String("Ошибка калибровки влажной почвы датчика #") + name + String("значение не валидно ") + getMedium()).c_str());
+      return false;
+    }
+  }
+
     ~CSMSModbus() {}
+
+  int getMedium() override
+  {
+    // Возвращаем среднее значение между сухой и влажной почвой
+    return medium;
+  }
 };
 
 #endif // CSMS_MODBUS_H

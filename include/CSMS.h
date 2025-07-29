@@ -10,27 +10,25 @@ using namespace std;
 class CSMS : public ICSMS
 {
   unsigned int pin;
-  int arr [10] = {0};
+  int arr[10] = {0};
   int counter;
   int medium;
   int humidity;
   unsigned int drySoilValue;
   unsigned int wetSoilValue;
-  const char* name;
+  const char *name;
 
-  Logger* logger;
+  Logger *logger;
 
 public:
-  CSMS(int pin, Logger* logger, const char* name, uint32_t intervalMs, unsigned int drySoilValue = 2800, unsigned int wetSoilValue = 1100) :
-  ICSMS(name, intervalMs), pin(pin), logger(logger), name(name), drySoilValue(drySoilValue), wetSoilValue(wetSoilValue)
+  CSMS(int pin, Logger *logger, const char *name, uint32_t intervalMs, unsigned int drySoilValue = 2800, unsigned int wetSoilValue = 1100) : ICSMS(name, intervalMs), pin(pin), logger(logger), name(name), drySoilValue(drySoilValue), wetSoilValue(wetSoilValue)
   {
     counter = 0;
     medium = 0;
     logger->send(LevelLog::INFO, (string("Подключение: #") + name).c_str());
   }
 
-
-  void exec() override 
+  void exec() override
   {
     measure();
     if (counter == 10)
@@ -39,7 +37,7 @@ public:
     }
   }
 
-  bool humidityIsValid() const override 
+  bool humidityIsValid() const override
   {
     if (0 <= this->humidity && this->humidity <= 100)
     {
@@ -49,7 +47,7 @@ public:
     return false;
   }
 
-  int getHumidity() const override  
+  int getHumidity() const override
   {
     return this->humidity;
   }
@@ -69,17 +67,17 @@ public:
   //   return this->medium;
   // }
 
-  const char* getName() const override 
+  const char *getName() const override
   {
     return this->name;
   }
 
-  unsigned int getDrySoilValue() const override 
+  unsigned int getDrySoilValue() const override
   {
     return drySoilValue;
   }
 
-  bool setDrySoilValue(unsigned int drySoilValue) override 
+  bool setDrySoilValue(unsigned int drySoilValue) override
   {
     if (drySoilValue < 4096)
     {
@@ -90,12 +88,12 @@ public:
     return false;
   }
 
-  unsigned int getWetSoilValue() const override 
+  unsigned int getWetSoilValue() const override
   {
     return wetSoilValue;
   }
 
-  bool setWetSoilValue(unsigned int wetSoilValue) override 
+  bool setWetSoilValue(unsigned int wetSoilValue) override
   {
     if (wetSoilValue < 4096)
     {
@@ -106,6 +104,47 @@ public:
     return false;
   }
 
+  bool calibrateDrySoilValue()
+  {
+    if (humidityIsValid())
+    {
+      bool flag = setDrySoilValue(getMedium());
+      if (flag)
+        logger->send(LevelLog::WARNING, (string("Калибровка сухой почвы датчика #") + name + string(", новое значение: ") + to_string(getMedium())).c_str());
+      else
+        logger->send(LevelLog::ERROR, (string("Ошибка калибровки сухой почвы датчика #") + name).c_str());
+      return flag;
+    }
+    else
+    {
+      logger->send(LevelLog::ERROR, (string("Ошибка калибровки сухой почвы датчика #") + name + string("значение не валидно ") + to_string(getMedium())).c_str());
+      return false;
+    }
+  }
+
+  bool calibrateWetSoilValue()
+  {
+    if (humidityIsValid())
+    {
+      bool flag = setWetSoilValue(getMedium());
+      if (flag)
+        logger->send(LevelLog::WARNING, (string("Калибровка влажной почвы датчика #") + name + string(", новое значение: ") + to_string(getMedium())).c_str());
+      else
+        logger->send(LevelLog::ERROR, (string("Ошибка калибровки влажной почвы датчика #") + name).c_str());
+      return flag;
+    }
+    else
+    {
+      logger->send(LevelLog::ERROR, (string("Ошибка калибровки влажной почвы датчика #") + name + string("значение не валидно ") + to_string(getMedium())).c_str());
+      return false;
+    }
+  }
+
+  int getMedium()
+  {
+    return medium;
+  }
+
   ~CSMS() {}
 
 private:
@@ -114,15 +153,15 @@ private:
     logger->send(LevelLog::INFO, (string("Pin:") + to_string(pin) + string(", ") + to_string(analogRead(pin))).c_str());
     arr[counter] = analogRead(pin);
     logger->send(LevelLog::INFO, (
-      string("Измерение данных: #") + name + string(", pin:") + to_string(pin) + string(", ") + string(", сырое значение: ") + to_string(arr[counter])).c_str()
-      );
+                                     string("Измерение данных: #") + name + string(", pin:") + to_string(pin) + string(", ") + string(", сырое значение: ") + to_string(arr[counter]))
+                                     .c_str());
     counter++;
   }
 
   int calcMedium()
   {
     unsigned int summ = 0;
-    for (int i = 0; i < 10; i ++)
+    for (int i = 0; i < 10; i++)
     {
       summ += arr[i];
     }

@@ -16,6 +16,11 @@ public:
     virtual unsigned int getWetSoilValue() const = 0;
     virtual bool setWetSoilValue(unsigned int wetSoilValue) = 0;
 
+    virtual bool calibrateDrySoilValue() = 0;
+    virtual bool calibrateWetSoilValue() = 0;
+
+    virtual int getMedium() = 0;
+
 private:
     virtual void exec() = 0;
 };
