@@ -32,9 +32,9 @@
 
 #define LCD_ROWS 2
 #define LCD_COLS 16
-#define ENCODER_PIN_A 5
-#define ENCODER_PIN_B 18
-#define ENCODER_PIN_SW 19
+#define ENCODER_PIN_A 5 // clk
+#define ENCODER_PIN_B 18 // dt
+#define ENCODER_PIN_SW 19 // sw
 
 // #define CREATE_SENSOR_MENU(name, sensorPtr)                                               \
 //   CSMSModbusGetData name##GetData(sensorPtr);                                             \
@@ -126,14 +126,19 @@ WebServer server(80);
 // Настройка датчиков CSMS Modbus
 CSMSModbus sensor1("CSMS-MOD1", &logger, 1, 0x00, 1000, 567, 225);
 CSMSModbus sensor2("CSMS-MOD2", &logger, 2, 0x00, 1000, 567, 225);
+CSMSModbus sensor3("CSMS-MOD3", &logger, 3, 0x00, 1000, 567, 225);
+CSMSModbus sensor4("CSMS-MOD4", &logger, 4, 0x00, 1000, 567, 225);
 
 // Группа для pot1
 HumiditySensorGroup pot1Group("Pot1Group");
+HumiditySensorGroup pot2Group("Pot2Group");
 
-Pump pump1(18);
+Pump pump1(32);
+Pump pump2(33);
 
 // Настройка pot1 с группой датчиков
 Pot pot1("Pot1", &logger, &pump1, &pot1Group, 40, 3000, 1000, 2000);
+Pot pot2("Pot2", &logger, &pump2, &pot2Group, 40, 3000, 1000, 2000);
 
 // Initialize the main menu items
 // clang-format off
@@ -169,10 +174,6 @@ LP_TIMER(1000, []()
   LevelLog level = (counterLoop < 100) ? LevelLog::WARNING : LevelLog::DEBUG;
   logger.send(level, (String("Количество Loop/Ms: ") + counterLoop).c_str());
   counterLoop = 0; });
-
-LP_TIMER(1000, []() {
-
-});
 
 LP_TIMER(1000, []() {
 
@@ -233,7 +234,20 @@ MENU_SCREEN(
 //   }),
 // );
 
+extern Logger logger;
 
+LP_TIMER(500, []() {
+  menu.poll(500);
+  sensor1GetData.updateHumidity();
+  sensor2GetData.updateHumidity();
+  logger.send(LevelLog::DEBUG, (String("Menu polled")).c_str());
+});
+
+LP_TIMER(1, []() {
+  keyboard.observe();
+  encoderA.observe();
+  logger.send(LevelLog::DEBUG, (String("Keyboard and Encoder polled")).c_str());
+});
 
 void handleRoot();
 
@@ -246,15 +260,18 @@ void setup()
   pot1Group.addSensor(&sensor1);
   pot1Group.addSensor(&sensor2);
 
+  pot2Group.addSensor(&sensor3);
+  pot2Group.addSensor(&sensor4);
+
   // Настройка Modbus RTU
-  RS485.setPins(17, 33, 32);
-  if (!ModbusRTUClient.begin(115200, SERIAL_8E2))
+  // RS485.setPins(17, 33, 32);
+  if (!ModbusRTUClient.begin(9600, SERIAL_8N2))
   {
     Serial.println("Не удалось запустить Modbus RTU Client!");
     while (1)
       ;
   }
-  ModbusRTUClient.setTimeout(500);
+  ModbusRTUClient.setTimeout(300);
 
   WiFi.softAP(ssid, password);
   WiFi.softAPConfig(local_ip, gateway, subnet);
@@ -265,7 +282,7 @@ void setup()
   server.begin();
 
   renderer.begin();
-  menu.setScreen(  CSMSsMenu);
+  menu.setScreen(CSMSsMenu);
 }
 
 void loop()
@@ -287,11 +304,6 @@ void loop()
   // esp_sleep_enable_timer_wakeup(Looper.nextTimerLeft() * 1000);
   // esp_light_sleep_start();
   counterLoop++;
-  keyboard.observe();
-  encoderA.observe();
-  menu.poll(100);
-  sensor1GetData.updateHumidity();
-  sensor2GetData.updateHumidity();
 }
 
 void handleRoot()

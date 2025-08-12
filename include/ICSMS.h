@@ -4,7 +4,7 @@
 #include <Looper.h>          // LoopTimerBase
 #include "IHumiditySensor.h" // Новый интерфейс
 
-class ICSMS : public IHumiditySensor, private LoopTimerBase
+class ICSMS : public IHumiditySensor, protected  LoopTimerBase
 {
 public:
     ICSMS(const char *id, uint32_t intervalMs)
