@@ -62,7 +62,7 @@ public:
       // logger->flush();
       Serial2.flush();
       delay(100);
-      medium = ModbusRTUClient.inputRegisterRead(slaveId, registerAddress);
+      medium = readInputRegister();
       Serial2.flush();
       if (medium != -1)
         break; // успех
@@ -224,6 +224,13 @@ public:
       logger->send(LevelLog::WARNING, (String("CSMSModbus state remains unchanged: ") + (this->myCSMSModbusState == CSMSModbusState::NORMAL_SURVEY ? "NORMAL_SURVEY" : "REPEAT_SURVEY")).c_str());
     }
   }
+
+  protected:
+  virtual long readInputRegister() const
+  {
+    return ModbusRTUClient.inputRegisterRead(slaveId, registerAddress);
+  }
+
 };
 
 #endif // CSMS_MODBUS_H

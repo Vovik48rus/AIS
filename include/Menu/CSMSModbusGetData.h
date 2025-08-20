@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "CSMSModbus.h"
+#include "Logger.h" // Подключаем логгер
 
 struct CSMSModbusData
 {
@@ -21,8 +22,14 @@ private:
     CSMSModbus *sensor; // Указатель на внешний объект CSMSModbus
     CSMSModbusData *myCSMSModbusData;
 
+    void logValue(const char* label, int value)
+    {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "%s: %d", label, value);
+        logger.send(WARNING, buffer);
+    }
+
 public:
-    // Конструктор — принимает указатель на CSMSModbus и инициализирует значения
     CSMSModbusGetData(CSMSModbus *sensor)
         : sensor(sensor)
     {
@@ -33,41 +40,42 @@ public:
             myCSMSModbusData->wetSoilValuePtr = sensor->getWetSoilValue();
         }
     }
+
     void updateHumidity()
     {
         if (!sensor)
             return;
+
         if (sensor->getHumidity() != myCSMSModbusData->humidityPtr)
         {
             myCSMSModbusData->humidityPtr = sensor->getHumidity();
-            Serial.print("Humidity updated: ");
-            Serial.println(myCSMSModbusData->humidityPtr);
+            logValue("Humidity updated", myCSMSModbusData->humidityPtr);
         }
-        if(sensor->getMedium() != myCSMSModbusData->medium)
+
+        if (sensor->getMedium() != myCSMSModbusData->medium)
         {
             myCSMSModbusData->medium = sensor->getMedium();
-            Serial.print("Medium updated: ");
-            Serial.println(myCSMSModbusData->medium);
+            logValue("Medium updated", myCSMSModbusData->medium);
         }
     }
 
-    // Опрос: обновить значения, считав их у сенсора
     void poll()
     {
         if (!sensor)
             return;
+
         updateHumidity();
+
         if (sensor->getDrySoilValue() != myCSMSModbusData->drySoilValuePtr)
         {
             myCSMSModbusData->drySoilValuePtr = sensor->getDrySoilValue();
-            Serial.print("Dry Soil Value updated: ");
-            Serial.println(myCSMSModbusData->drySoilValuePtr);
+            logValue("Dry Soil Value updated", myCSMSModbusData->drySoilValuePtr);
         }
+
         if (sensor->getWetSoilValue() != myCSMSModbusData->wetSoilValuePtr)
         {
             myCSMSModbusData->wetSoilValuePtr = sensor->getWetSoilValue();
-            Serial.print("Wet Soil Value updated: ");
-            Serial.println(myCSMSModbusData->wetSoilValuePtr);
+            logValue("Wet Soil Value updated", myCSMSModbusData->wetSoilValuePtr);
         }
     }
 
@@ -80,11 +88,6 @@ public:
     {
         return sensor;
     }
-
-    // // При необходимости — геттеры по значению:
-    // int getHumidity() const { return humidity; }
-    // unsigned int getDrySoilValue() const { return drySoilValue; }
-    // unsigned int getWetSoilValue() const { return wetSoilValue; }
 };
 
 #endif // CSMS_MODBUS_GET_DATA_H

@@ -1,40 +1,45 @@
-#ifndef PUMP_H
-#define PUMP_H
+    #ifndef PUMP_H
+    #define PUMP_H
 
-#include "Logger.h"
-#include <Looper.h>
+    #include "Logger.h"
+    #include <Looper.h>
 
-class Pump
-{
-private:
-    int pin;
-    bool isEnable = false;
-
-public:
-    Pump(int pin): pin(pin)
+    class Pump
     {
-        pinMode(pin, OUTPUT);
-        this->off();
-    }
+    private:
+        int pin;
+        bool isEnable = false;
 
-    void on()
-    {
-        logger.send(LevelLog::WARNING, "[Pump] Включение помпы ");
-        digitalWrite(pin, HIGH);
-        this->isEnable = true;
-    }
+    public:
+        Pump(int pin): pin(pin)
+        {
+            pinMode(pin, OUTPUT);
+            this->off();
+        }
 
-    void off()
-    {
-        logger.send(LevelLog::WARNING, "[Pump] Выключение помпы ");
-        digitalWrite(pin, LOW);
-        this->isEnable = false;
-    }
+        void on()
+        {
+            logger.send(LevelLog::WARNING, "[Pump] Включение помпы ");
+            digitalWrite(pin, HIGH);
+            this->isEnable = true;
+        }
 
-    bool isOn()
-    {
-        return this->isEnable;
-    }
-};
+        void off()
+        {
+            logger.send(LevelLog::WARNING, "[Pump] Выключение помпы ");
+            digitalWrite(pin, LOW);
+            this->isEnable = false;
+        }
 
-#endif // PUMP_H
+        bool isOn()
+        {
+            return this->isEnable;
+        }
+
+        int getPin()
+        {
+            return this->pin;
+        }
+    };
+
+    #endif // PUMP_H
