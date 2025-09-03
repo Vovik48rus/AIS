@@ -71,79 +71,57 @@ using namespace std;
         logger.send(LevelLog::ERROR, "Failed to set Wet Soil value due to invalid humidity."); \
       } }))
 
-#define CREATE_POT_MENU(name, potPtr, loggerPtr, pumpScreen, ...)                        \
-  PotGetData name##GetData(potPtr, loggerPtr);                               \
-  PotData* name##Data = name##GetData.getData();                             \
-                                                                             \
-  MENU_SCREEN(                                                               \
-      name##CSMSMenu,                                                        \
-      name##CSMSItems,                                                       \
-      __VA_ARGS__ );                                                         \
-                                                                             \
-  MENU_SCREEN(                                                               \
-      name##PeriodsMenu,                                                     \
-      name##PeriodsItems,                                                    \
-      ITEM_COMMAND("Update Periods", []() { name##GetData.poll(); }),        \
-      ITEM_RANGE_REF<int>("Survey", name##Data->surveyTime, 50, 0,           \
-          numeric_limits<int>::max(), [](const Ref<int> value) {             \
-            name##GetData.getPot()->setSurveyTime(value.value);              \
-            name##GetData.poll();                                            \
-          }, "%d"),                                                          \
-      ITEM_RANGE_REF<int>("Watering", name##Data->wateringTime, 50, 0,       \
-          numeric_limits<int>::max(), [](const Ref<int> value) {             \
-            name##GetData.getPot()->setWateringTime(value.value);            \
-            name##GetData.poll();                                            \
-          }, "%d"),                                                          \
-      ITEM_RANGE_REF<int>("Absorption", name##Data->absorptionTime, 50, 0,   \
-          numeric_limits<int>::max(), [](const Ref<int> value) {             \
-            name##GetData.getPot()->setAbsorptionTime(value.value);          \
-            name##GetData.poll();                                            \
-          }, "%d") );                                                        \
-                                                                             \
-  MENU_SCREEN(                                                               \
-      name##Menu,                                                            \
-      name##Items,                                                           \
-      ITEM_VALUE("Period", name##Data->stateStr, "%s"),                      \
-      ITEM_VALUE("Humidity", name##Data->lastHumidity, "%d%%"),              \
-      ITEM_RANGE_REF<int>("Threshold", name##Data->threshold, 1, 0, 100,     \
-          [](const Ref<int> value) {                                         \
+#define CREATE_POT_MENU(name, potPtr, loggerPtr, pumpScreen, ...)                                                                                                                                                                                                                                                                                                                                            \
+  PotGetData name##GetData(potPtr, loggerPtr);                                                                                                                                                                                                                                                                                                                                                               \
+  PotData *name##Data = name##GetData.getData();                                                                                                                                                                                                                                                                                                                                                             \
+                                                                                                                                                                                                                                                                                                                                                                                                             \
+  MENU_SCREEN(                                                                                                                                                                                                                                                                                                                                                                                               \
+      name##CSMSMenu,                                                                                                                                                                                                                                                                                                                                                                                        \
+      name##CSMSItems,                                                                                                                                                                                                                                                                                                                                                                                       \
+      __VA_ARGS__);                                                                                                                                                                                                                                                                                                                                                                                          \
+                                                                                                                                                                                                                                                                                                                                                                                                             \
+  MENU_SCREEN(                                                                                                                                                                                                                                                                                                                                                                                               \
+      name##PeriodsMenu,                                                                                                                                                                                                                                                                                                                                                                                     \
+      name##PeriodsItems,                                                                                                                                                                                                                                                                                                                                                                                    \
+      ITEM_COMMAND("Update Periods", []() { name##GetData.poll(); }),                                                                                                                                                                                                                                                                                                                                        \
+      ITEM_RANGE_REF<int>("Survey", name##Data->surveyTime, 1, 0, numeric_limits<int>::max(), [](const Ref<int> value) {             \
+            name##GetData.getPot()->setSurveyTime(value.value * 60 * 1000);  \
+            name##GetData.poll(); }, "%dm"), ITEM_RANGE_REF<int>("Watering", name##Data->wateringTime, 1, 0, numeric_limits<int>::max(), [](const Ref<int> value) {             \
+            name##GetData.getPot()->setWateringTime(value.value * 60 * 1000);            \
+            name##GetData.poll(); }, "%dm"), ITEM_RANGE_REF<int>("Absorption", name##Data->absorptionTime, 1, 0, numeric_limits<int>::max(), [](const Ref<int> value) {             \
+            name##GetData.getPot()->setAbsorptionTime(value.value * 60 * 1000);          \
+            name##GetData.poll(); }, "%dm")); \
+                                                                                                                                                                                                                                                                                                                                                                                                             \
+  MENU_SCREEN(                                                                                                                                                                                                                                                                                                                                                                                               \
+      name##Menu,                                                                                                                                                                                                                                                                                                                                                                                            \
+      name##Items,                                                                                                                                                                                                                                                                                                                                                                                           \
+      ITEM_VALUE("Period", name##Data->stateStr, "%s"),                                                                                                                                                                                                                                                                                                                                                      \
+      ITEM_VALUE("Humidity", name##Data->lastHumidity, "%d%%"),                                                                                                                                                                                                                                                                                                                                              \
+      ITEM_RANGE_REF<int>("Threshold", name##Data->threshold, 1, 0, 100, [](const Ref<int> value) {                                         \
             name##GetData.getPot()->setThreshold(value.value);               \
-            name##GetData.poll();                                            \
-          }, "%d%%"),                                                        \
-      ITEM_SUBMENU("Periods", name##PeriodsMenu),                            \
-      ITEM_SUBMENU("Sensors", name##CSMSMenu),                               \
-      ITEM_SUBMENU("Pump", pumpScreen) );                                    \
-                                                                             \
-  LP_TIMER(500, [](){                                                        \
+            name##GetData.poll(); }, "%d%%"), ITEM_SUBMENU("Periods", name##PeriodsMenu), ITEM_SUBMENU("Sensors", name##CSMSMenu), ITEM_SUBMENU("Pump", pumpScreen));                                                                                                                                                                      \
+                                                                                                                                                                                                                                                                                                                                                                                                             \
+  LP_TIMER(500, []() {                                                        \
     name##GetData.updateHumidity();                                          \
-    name##GetData.updateState();                                             \
-  });
+    name##GetData.updateState(); });
 
-  #define CREATE_PUMP_MENU(name, pumpPtr, loggerPtr)                       \
-  PumpGetData name##GetData(pumpPtr, loggerPtr);                           \
-  PumpData* name##Data = name##GetData.getData();                          \
-                                                                           \
-  MENU_SCREEN(                                                             \
-      name##Menu,                                                          \
-      name##Items,                                                         \
-      ITEM_VALUE("State", name##Data->stateStr, "%s"),                     \
+#define CREATE_PUMP_MENU(name, pumpPtr, loggerPtr)                          \
+  PumpGetData name##GetData(pumpPtr, loggerPtr);                            \
+  PumpData *name##Data = name##GetData.getData();                           \
+                                                                            \
+  MENU_SCREEN(                                                              \
+      name##Menu,                                                           \
+      name##Items,                                                          \
+      ITEM_VALUE("State", name##Data->stateStr, "%s"),                      \
       ITEM_COMMAND("Turn ON", []() {                                       \
         name##GetData.getPump()->on();                                     \
-        name##GetData.updateState();                                       \
-      }),                                                                  \
+        name##GetData.updateState(); }),                                    \
       ITEM_COMMAND("Turn OFF", []() {                                      \
         name##GetData.getPump()->off();                                    \
-        name##GetData.updateState();                                       \
-      }),                                                                  \
-      ITEM_COMMAND("Update State", []() {                                  \
-        name##GetData.updateState();                                       \
-      })                                                                   \
-  );                                                                        \
-                                                                           \
-  LP_TIMER(500, [](){                                                      \
-    name##GetData.updateState();                                           \
-  });
-
+        name##GetData.updateState(); }),                                   \
+      ITEM_COMMAND("Update State", []() { name##GetData.updateState(); })); \
+                                                                            \
+  LP_TIMER(500, []() { name##GetData.updateState(); });
 
 extern Logger logger;
 
@@ -158,22 +136,25 @@ IPAddress subnet(255, 255, 255, 0);
 
 WebServer server(80);
 
+String name_culture = "default";
+
 // Настройка датчиков CSMS Modbus
-CSMSModbus sensor1("CSMS-MOD1", &logger, 1, 0x00, 1000, 567, 225);
-CSMSModbus sensor2("CSMS-MOD2", &logger, 3, 0x00, 1000, 567, 225);
-CSMSModbus sensor3("CSMS-MOD3", &logger, 2, 0x00, 1000, 567, 225);
-CSMSModbus sensor4("CSMS-MOD4", &logger, 4, 0x00, 1000, 567, 225);
+CSMSModbus sensor1("CSMS-MOD1", &logger, 2, 0x00, 1000, 530, 225);
+// CSMSModbus sensor2("CSMS-MOD2", &logger, 3, 0x00, 1000, 567, 225);
+// CSMSModbus sensor3("CSMS-MOD3", &logger, 2, 0x00, 1000, 567, 225);
+// CSMSModbus sensor4("CSMS-MOD4", &logger, 4, 0x00, 1000, 567, 225);
 
 // Группа для pot1
 HumiditySensorGroup pot1Group("Pot1Group");
-HumiditySensorGroup pot2Group("Pot2Group");
+// HumiditySensorGroup pot2Group("Pot2Group");
 
 Pump pump1(19);
-Pump pump2(23);
+// Pump pump2(23);
 
 // Настройка pot1 с группой датчиков
-Pot pot1("Pot1", &logger, &pump1, &pot1Group, 40, 3000, 1000, 2000);
-Pot pot2("Pot2", &logger, &pump2, &pot2Group, 40, 3000, 1000, 2000);
+Pot pot1("Pot1", &logger, &pump1, &pot1Group, 80, 1000 * 60 * 60 * 5, 1000 * 60 * 30, 1000 * 60 * 10);
+// Pot pot1("Pot1", &logger, &pump1, &pot1Group, 80, 1000*60, 1000*60*30, 1000*10);
+// Pot pot2("Pot2", &logger, &pump2, &pot2Group, 40, 3000, 1000, 2000);
 
 // Initialize the main menu items
 // clang-format off
@@ -218,10 +199,10 @@ LP_TIMER(1000, []() {
 // CSMSModbusData* sensor1Data = sensor1GetData.getData();
 
 CREATE_SENSOR_MENU(sensor1, &sensor1);
-CREATE_SENSOR_MENU(sensor2, &sensor2);
+// CREATE_SENSOR_MENU(sensor2, &sensor2);
 
 CREATE_PUMP_MENU(pump1, &pump1, &logger);
-CREATE_PUMP_MENU(pump2, &pump2, &logger);
+// CREATE_PUMP_MENU(pump2, &pump2, &logger);
 
 CREATE_POT_MENU(
     pot1,
@@ -229,41 +210,42 @@ CREATE_POT_MENU(
     &logger,
     pump1Menu,
     ITEM_SUBMENU(sensor1.getName(), sensor1Screen),
-    ITEM_SUBMENU(sensor2.getName(), sensor2Screen)
+    // ITEM_SUBMENU(sensor2.getName(), sensor2Screen)
 );
 
-CREATE_SENSOR_MENU(sensor3, &sensor3);
-CREATE_SENSOR_MENU(sensor4, &sensor4);
+// CREATE_SENSOR_MENU(sensor3, &sensor3);
+// CREATE_SENSOR_MENU(sensor4, &sensor4);
 
-CREATE_POT_MENU(
-    pot2,
-    &pot2,
-    &logger,
-    pump2Menu,
-    ITEM_SUBMENU(sensor3.getName(), sensor3Screen),
-    ITEM_SUBMENU(sensor4.getName(), sensor4Screen)
-);
+// CREATE_POT_MENU(
+//     pot2,
+//     &pot2,
+//     &logger,
+//     pump2Menu,
+//     ITEM_SUBMENU(sensor3.getName(), sensor3Screen),
+//     ITEM_SUBMENU(sensor4.getName(), sensor4Screen)
+// );
 
 MENU_SCREEN(
     PumpsMenu,
     PumpsItems,
     ITEM_SUBMENU("Pump1", pump1Menu),
-    ITEM_SUBMENU("Pump2", pump2Menu)
+    // ITEM_SUBMENU("Pump2", pump2Menu)
 );
 
 MENU_SCREEN(
     CSMSsMenu,
     CSMSsItems,
     ITEM_SUBMENU(sensor1.getName(), sensor1Screen),
-    ITEM_SUBMENU(sensor2.getName(), sensor2Screen),
-    ITEM_SUBMENU(sensor3.getName(), sensor3Screen),
-    ITEM_SUBMENU(sensor4.getName(), sensor4Screen));
+    // ITEM_SUBMENU(sensor2.getName(), sensor2Screen),
+    // ITEM_SUBMENU(sensor3.getName(), sensor3Screen),
+    // ITEM_SUBMENU(sensor4.getName(), sensor4Screen)
+);
 
 MENU_SCREEN(
     PotsMenu,
     PotsItems,
     ITEM_SUBMENU(pot1.getNameCStr(), pot1Menu),
-    ITEM_SUBMENU(pot2.getNameCStr(), pot2Menu),
+    // ITEM_SUBMENU(pot2.getNameCStr(), pot2Menu),
 );
 
 MENU_SCREEN(
@@ -271,11 +253,9 @@ MENU_SCREEN(
     RootItems,
     ITEM_SUBMENU("CSMS Sensors", CSMSsMenu),
     ITEM_SUBMENU("Pots", PotsMenu),
-    ITEM_SUBMENU("Pumps", PumpsMenu),
-);
+    ITEM_SUBMENU("Pumps", PumpsMenu), );
 
 // MENU_SCREEN();
-
 
 // MENU_SCREEN(
 //   sensor1Screen,
@@ -348,7 +328,7 @@ MENU_SCREEN(
 //     ITEM_VALUE("Period", pot1Data->stateStr, "%s"),
 //     ITEM_RANGE_REF<int>("Threshold", pot1Data->threshold, 1, 0, 100, [](const Ref<int> value)
 //                         {
-//         pot1GetData.getPot()->setThreshold(value.value); 
+//         pot1GetData.getPot()->setThreshold(value.value);
 //         pot1GetData.poll(); }, "%d%%"),
 //     ITEM_SUBMENU("Periods", Pot1PeriodsMenu),
 //     ITEM_SUBMENU("Sensors", Pot1CSMSMenu));
@@ -370,14 +350,12 @@ LP_TIMER(500, []()
   logger.send(LevelLog::DEBUG, (String("Menu polled")).c_str()); });
 
 LP_TIMER(500, []()
-         {
-  sensor1GetData.updateHumidity();
-});
+         { sensor1GetData.updateHumidity(); });
 
-LP_TIMER(500, []()
-         {
-  sensor2GetData.updateHumidity();
-});
+// LP_TIMER(500, []()
+//          {
+//   sensor2GetData.updateHumidity();
+// });
 
 LP_TIMER(10, []()
          {
@@ -396,19 +374,23 @@ void updateEncoderA(TimerHandle_t xTimer)
   encoderA.observe();
 }
 
-void handleRoot();
+void getSettings();
+void setSettings();
+
+// const char *ssid = "Sabsem_Network 2.4";
+// const char *password = "";
 
 void setup()
 {
-  logger.setLevelLog(LevelLog::WARNING);
+  logger.setLevelLog(LevelLog::INFO);
   Serial.begin(115200);
 
   // Добавление датчиков в группу
   pot1Group.addSensor(&sensor1);
-  pot1Group.addSensor(&sensor2);
+  // pot1Group.addSensor(&sensor2);
 
-  pot2Group.addSensor(&sensor3);
-  pot2Group.addSensor(&sensor4);
+  // pot2Group.addSensor(&sensor3);
+  // pot2Group.addSensor(&sensor4);
 
   xTimer = xTimerCreate("MyTimer", pdMS_TO_TICKS(10), pdTRUE, (void *)0, updateEncoderA);
   xTimerStart(xTimer, 0);
@@ -423,11 +405,27 @@ void setup()
   }
   ModbusRTUClient.setTimeout(300);
 
+  // Serial.println("Connecting to ");
+  // Serial.println(ssid);
+  // // Serial.println(password);
+  // // connect to your local wi-fi network
+  // WiFi.begin(ssid, password);
+  // // check wi-fi is connected to wi-fi network
+  // while (WiFi.status() != WL_CONNECTED)
+  // {
+  //   delay(1000);
+  //   Serial.print(".");
+  // }
+  // Serial.println("");
+  // Serial.println("WiFi connected..!");
+  // Serial.print("Got IP: ");
+  // Serial.println(WiFi.localIP());
   WiFi.softAP(ssid, password);
   WiFi.softAPConfig(local_ip, gateway, subnet);
   delay(100);
 
-  server.on("/", handleRoot);
+  server.on("/get_settings", getSettings);
+  server.on("/set_settings", setSettings);
 
   server.begin();
 
@@ -438,6 +436,7 @@ void setup()
 void loop()
 {
   Looper.loop();
+  server.handleClient();
   // delay(Looper.nextTimerLeft());
   // Serial.print(Looper.nextTimerLeft() * 1000);
   // Serial.print(", ");
@@ -456,18 +455,74 @@ void loop()
   counterLoop++;
 }
 
-void handleRoot()
+// Общая функция для формирования JSON с текущими настройками pot1
+String makePot1SettingsJson()
 {
-  // Создаем JSON-объект
-  StaticJsonDocument<200> jsonDoc;
-  jsonDoc["temperature"] = 24.5;
-  jsonDoc["humidity"] = 55;
-  jsonDoc["status"] = "OK";
+  StaticJsonDocument<300> doc;
 
-  // Сериализация в строку
-  String jsonResponse;
-  serializeJson(jsonDoc, jsonResponse);
+  doc["name_culture"] = name_culture;
+  doc["name"] = pot1.getNameCStr();
+  doc["threshold"] = pot1.getThreshold();
+  doc["survey_time"] = pot1.getSurveyTime();
+  doc["watering_time"] = pot1.getWateringTime();
+  doc["absorption_time"] = pot1.getAbsorptionTime();
+  // doc["current_state"] = stateToString(pot1.getState());
 
-  // Отправляем клиенту JSON
-  server.send(200, "application/json", jsonResponse);
+  String json;
+  serializeJson(doc, json);
+  return json;
+}
+
+// ========== GET ==========
+void getSettings()
+{
+  server.send(200, "application/json", makePot1SettingsJson());
+}
+
+// ========== SET ==========
+void setSettings()
+{
+  if (!server.hasArg("plain"))
+  {
+    server.send(400, "application/json", "{\"error\":\"No body received\"}");
+    return;
+  }
+
+  StaticJsonDocument<300> doc;
+  DeserializationError error = deserializeJson(doc, server.arg("plain"));
+
+  if (error)
+  {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  // --- Проверка и установка параметров ---
+  if (doc.containsKey("name_culture") && doc["name_culture"].is<const char*>())
+  {
+    name_culture = doc["name_culture"].as<const char*>();
+  }
+
+  if (doc.containsKey("threshold") && doc["threshold"].is<int>())
+  {
+    pot1.setThreshold(doc["threshold"].as<int>());
+  }
+
+  if (doc.containsKey("survey_time") && doc["survey_time"].is<int>())
+  {
+    pot1.setSurveyTime(doc["survey_time"].as<int>());
+  }
+
+  if (doc.containsKey("watering_time") && doc["watering_time"].is<int>())
+  {
+    pot1.setWateringTime(doc["watering_time"].as<int>());
+  }
+
+  if (doc.containsKey("absorption_time") && doc["absorption_time"].is<int>())
+  {
+    pot1.setAbsorptionTime(doc["absorption_time"].as<int>());
+  }
+
+  // Возвращаем актуальные данные
+  server.send(200, "application/json", makePot1SettingsJson());
 }

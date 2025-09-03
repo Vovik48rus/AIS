@@ -72,9 +72,9 @@ public:
             myPotData = new PotData(
                 pot->getState(),
                 pot->getThreshold(),
-                pot->getSurveyTime(),
-                pot->getWateringTime(),
-                pot->getAbsorptionTime(),
+                pot->getSurveyTime() / 60000,
+                pot->getWateringTime() / 60000,
+                pot->getAbsorptionTime() / 60000,
                 pot->getHumidity(),
                 pot->getName());
         }
@@ -131,22 +131,22 @@ public:
         // Проверка изменения времени опроса
         if (pot->getSurveyTime() != myPotData->surveyTime)
         {
-            myPotData->surveyTime = pot->getSurveyTime();
-            logChange(LevelLog::INFO, "survey time updated: " + String(myPotData->surveyTime) + " ms");
+            myPotData->surveyTime = pot->getSurveyTime() / 60000;
+            logChange(LevelLog::INFO, "survey time updated: " + String(myPotData->surveyTime) + " m");
         }
 
         // Проверка изменения времени полива
         if (pot->getWateringTime() != myPotData->wateringTime)
         {
-            myPotData->wateringTime = pot->getWateringTime();
-            logChange(LevelLog::INFO, "watering time updated: " + String(myPotData->wateringTime) + " ms");
+            myPotData->wateringTime = pot->getWateringTime() / 60000;
+            logChange(LevelLog::INFO, "watering time updated: " + String(myPotData->wateringTime) + " m");
         }
 
         // Проверка изменения времени поглощения
         if (pot->getAbsorptionTime() != myPotData->absorptionTime)
         {
-            myPotData->absorptionTime = pot->getAbsorptionTime();
-            logChange(LevelLog::INFO, "absorption time updated: " + String(myPotData->absorptionTime) + " ms");
+            myPotData->absorptionTime = pot->getAbsorptionTime() / 60000;
+            logChange(LevelLog::INFO, "absorption time updated: " + String(myPotData->absorptionTime) + " m");
         }
     }
 
